@@ -8,7 +8,7 @@ async function fetchWithAuth(endpoint: string, options: RequestInit = {}) {
   const headers = {
     "Content-Type": "application/json",
     // The ServiceController requires X-Client-Id. 
-    // For the demo, we use the API key as the client ID.
+    // We use the apiKey if logged in, otherwise a fallback.
     "X-Client-Id": apiKey || "demo-client", 
     ...(apiKey ? { "X-API-Key": apiKey, "Authorization": `Bearer ${apiKey}` } : {}), 
     ...options.headers,
@@ -29,7 +29,6 @@ async function fetchWithAuth(endpoint: string, options: RequestInit = {}) {
     throw new Error(`API Error: ${response.status} ${response.statusText}`);
   }
 
-  // Handle empty responses (like 204 No Content)
   if (response.status === 204) return null;
   
   return response.json();
@@ -46,7 +45,7 @@ export const api = {
   toggleRule: (ruleId: string) => fetchWithAuth(`/admin/rules/${ruleId}/toggle`, { method: "PATCH" }),
   reloadRules: () => fetchWithAuth("/admin/rules/reload", { method: "POST" }),
 
-  // --- Dashboard Overview APIs ---s
+  // --- Dashboard Overview APIs ---
   getDashboardStats: () => fetchWithAuth("/api/dashboard/stats"),
   getDashboardUsage: () => fetchWithAuth("/api/dashboard/usage"),
   getDashboardEndpoints: () => fetchWithAuth("/api/dashboard/endpoints"),
@@ -54,4 +53,5 @@ export const api = {
   // --- API Keys APIs ---
   listKeys: () => fetchWithAuth("/admin/keys"),
   createKey: (plan: string) => fetchWithAuth("/admin/keys", { method: "POST", body: JSON.stringify({ plan }) }),
+  deleteKey: (clientId: string) => fetchWithAuth(`/admin/keys/${clientId}`, { method: "DELETE" }),
 };

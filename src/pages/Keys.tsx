@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { api } from "../api";
-import { KeyRound, Plus, ShieldCheck } from "lucide-react";
+import { KeyRound, Plus, ShieldCheck, Trash2 } from "lucide-react";
+import { useToast } from "../components/ToastContext";
 
 export default function Keys() {
   const [keys, setKeys] = useState<any[]>([]);
@@ -8,12 +9,13 @@ export default function Keys() {
   const [error, setError] = useState("");
   const [creating, setCreating] = useState(false);
   const [newKey, setNewKey] = useState<string | null>(null);
+  const [plan, setPlan] = useState("free"); // Added state for the plan
+  const { showToast } = useToast();
 
   const loadKeys = async () => {
     try {
       setLoading(true);
       const data = await api.listKeys();
-      // Ensure we handle both { keys: [...] } and [...] shapes
       setKeys(Array.isArray(data) ? data : data.keys || []);
       setError("");
     } catch (err: any) {
@@ -30,18 +32,27 @@ export default function Keys() {
   const handleCreate = async () => {
     try {
       setCreating(true);
-      // Defaulting to 'free' plan for the demo
-      const res = await api.createKey("free");
-      
-      // If the backend returns the raw key (e.g., sk-...), show it. Otherwise show the masked one.
+      // Use the selected plan instead of hardcoding "free"
+      const res = await api.createKey(plan);
       setNewKey(res.rawKey || res.apiKey || res.maskedKey || "Key generated (check backend logs)");
-      
-      // Reload the list
+      showToast("API Key generated successfully!");
       await loadKeys();
     } catch (err: any) {
-      alert("Failed to create key: " + err.message);
+      showToast("Failed to create key: " + err.message, "error");
     } finally {
       setCreating(false);
+    }
+  };
+
+  const handleDelete = async (clientId: string) => {
+    if (!confirm("Are you sure you want to permanently revoke this key? Any apps using it will stop working immediately.")) return;
+    
+    try {
+      await api.deleteKey(clientId);
+      showToast("Key revoked successfully.");
+      await loadKeys();
+    } catch (err: any) {
+      showToast("Failed to revoke key: " + err.message, "error");
     }
   };
 
@@ -52,13 +63,25 @@ export default function Keys() {
           <h1 className="text-2xl font-bold text-white tracking-tight">API Keys</h1>
           <p className="text-sm text-janus-dim mt-1">Manage keys to authenticate against the Janus Gateway.</p>
         </div>
-        <button
-          onClick={handleCreate}
-          disabled={creating}
-          className="flex items-center gap-2 rounded-md bg-janus-accent px-4 py-2 text-sm font-medium text-white hover:opacity-90 disabled:opacity-50 transition"
-        >
-          <Plus size={16} /> {creating ? "Generating..." : "Generate New Key"}
-        </button>
+        
+        <div className="flex items-center gap-3">
+          <select 
+            value={plan} 
+            onChange={(e) => setPlan(e.target.value)}
+            className="rounded-md border border-janus-line bg-janus-panel px-3 py-2 text-sm text-white focus:outline-none focus:border-janus-accent"
+          >
+            <option value="free">Free (10 req/s)</option>
+            <option value="pro">Pro (100 req/s)</option>
+          </select>
+
+          <button
+            onClick={handleCreate}
+            disabled={creating}
+            className="flex items-center gap-2 rounded-md bg-janus-accent px-4 py-2 text-sm font-medium text-white hover:opacity-90 disabled:opacity-50 transition"
+          >
+            <Plus size={16} /> {creating ? "Generating..." : "Generate New Key"}
+          </button>
+        </div>
       </div>
 
       {newKey && (
@@ -97,6 +120,7 @@ export default function Keys() {
                 <th className="px-4 py-3 font-medium">Plan</th>
                 <th className="px-4 py-3 font-medium">Created</th>
                 <th className="px-4 py-3 font-medium">Status</th>
+                <th className="px-4 py-3 font-medium text-right">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-janus-line text-janus-text">
@@ -111,6 +135,14 @@ export default function Keys() {
                     <span className="inline-flex items-center rounded-full bg-green-500/10 px-2 py-1 text-xs font-medium text-green-400">
                       Active
                     </span>
+                  </td>
+                  <td className="px-4 py-3 text-right">
+                    <button 
+                      onClick={() => handleDelete(k.clientId)}
+                      className="inline-flex items-center gap-1 text-red-400 hover:text-red-300 text-xs font-medium hover:underline transition"
+                    >
+                      <Trash2 size={14} /> Revoke
+                    </button>
                   </td>
                 </tr>
               ))}
