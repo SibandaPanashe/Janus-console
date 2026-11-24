@@ -11,7 +11,13 @@ export default function Services() {
   const [error, setError] = useState("");
 
   async function load() {
-    try { setServices(await api.listServices()); } catch (e) { setError((e as Error).message); }
+        try { 
+      setServices(await api.listServices()); 
+      setError(""); // Clear any previous errors
+    } catch (e) { 
+      // Only show error if the service list fails
+      setError((e as Error).message); 
+    }
   }
   useEffect(() => { load(); }, []);
 
@@ -64,7 +70,7 @@ export default function Services() {
                   <h3 className="font-semibold text-janus-text group-hover:text-janus-accent transition">{svc.name}</h3>
                   <p className="text-xs text-janus-dim font-mono">{svc.backendUrl}</p>
                 </div>
-              </div>
+              </div>    
               <div className="h-2 w-2 rounded-full bg-janus-ok" />
             </div>
             <div className="mt-4 flex justify-end relative z-10 pointer-events-none">
